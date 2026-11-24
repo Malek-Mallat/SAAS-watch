@@ -1,24 +1,63 @@
-"""SaaSWatch — application Flask (Sprint 2 : vérification de l'environnement).
+"""SaaSWatch — backend Flask (Sprint 3).
 
-Pour l'instant, l'application vérifie seulement qu'elle communique avec
-Elasticsearch, MongoDB et Redis. Les vraies pages arrivent au Sprint 3.
+API REST versionnée /api/v1, documentée avec Swagger : http://localhost:8000/apidocs
+
+Organisation du code :
+  extensions.py   connexions Elasticsearch, MongoDB, Redis
+  auth.py         connexion (JWT), rôles admin / analyste, utilisateurs
+  validation.py   contrôle des fichiers CSV / JSON
+  api_uploads.py  import des fichiers + métadonnées MongoDB
+  api_logs.py     recherche Query DSL, statistiques (cache Redis), historique
+  api_alerts.py   règles d'alerte (MongoDB)
 """
+import logging
 import os
-from flask import Flask, jsonify
-from elasticsearch import Elasticsearch
-from pymongo import MongoClient
-import redis
+
+from elasticsearch import ConnectionError as ESConnectionError
+from flasgger import Swagger
+from flask import Flask, jsonify, request
+from pymongo.errors import PyMongoError
+from redis.exceptions import RedisError
+
+import api_alerts
+import api_logs
+import api_uploads
+import auth
+from extensions import ES_INDEX, cache, es, mongo
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "dev")
+app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "dev-change-me")
+app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024        # 20 Mo par fichier
+app.json.ensure_ascii = False                               # « é » lisible dans les réponses
+app.json.sort_keys = False
 
-es = Elasticsearch(os.getenv("ES_HOST", "http://elasticsearch:9200"))
-mongo = MongoClient(os.getenv("MONGO_URI"), serverSelectionTimeoutMS=2000)
-cache = redis.from_url(os.getenv("REDIS_URL", "redis://redis:6379/0"))
+Swagger(app, template={
+    "info": {
+        "title": "SaaSWatch API",
+        "version": "1.0",
+        "description": (
+            "API de monitoring des logs d'une application SaaS "
+            "(Elasticsearch + MongoDB + Redis).\n\n"
+            "**Pour tester :** 1) `POST /api/v1/auth/login` avec admin / admin123, "
+            "2) copier le token, 3) bouton **Authorize** → `Bearer <token>`."
+        ),
+    },
+    "securityDefinitions": {
+        "Bearer": {"type": "apiKey", "name": "Authorization", "in": "header",
+                   "description": "Saisir : Bearer <token>"},
+    },
+})
+
+for module in (auth, api_uploads, api_logs, api_alerts):
+    app.register_blueprint(module.bp)
+
+try:
+    auth.init_users()
+except PyMongoError as exc:      # MongoDB pas encore prêt : l'app démarre quand même
+    logging.warning("Compte admin non créé : %s", exc)
 
 
 def check(fn):
-    """Exécute un test de connexion et renvoie 'ok' ou le message d'erreur."""
     try:
         fn()
         return "ok"
@@ -26,30 +65,78 @@ def check(fn):
         return f"erreur : {exc.__class__.__name__}"
 
 
+# --------------------------------------------------------------------------
+# Santé (sans authentification)
+# --------------------------------------------------------------------------
 @app.get("/health")
 def health():
-    """Simple test utilisé par le healthcheck Docker."""
+    """Test simple utilisé par le healthcheck Docker.
+    ---
+    tags: [Santé]
+    responses:
+      200: {description: L'application répond}
+    """
     return jsonify(status="ok")
 
 
 @app.get("/status")
 def status():
-    """Vérifie la connexion à chaque service de l'architecture."""
+    """Vérifie la connexion à Elasticsearch, MongoDB et Redis.
+    ---
+    tags: [Santé]
+    responses:
+      200: {description: Tous les services répondent}
+      503: {description: Au moins un service ne répond pas}
+    """
     services = {
         "elasticsearch": check(lambda: es.info()),
         "mongodb": check(lambda: mongo.admin.command("ping")),
         "redis": check(lambda: cache.ping()),
     }
     try:
-        nb_logs = es.count(index="logs-saas-*")["count"]
+        nb_logs = es.count(index=ES_INDEX)["count"]
     except Exception:  # noqa: BLE001
         nb_logs = 0
     tout_ok = all(v == "ok" for v in services.values())
-    return jsonify(application="SaaSWatch", services=services,
-                   logs_indexes=nb_logs, statut="opérationnel" if tout_ok else "dégradé"), (200 if tout_ok else 503)
+    return jsonify(application="SaaSWatch", version="1.0", services=services, logs_indexes=nb_logs,
+                   statut="opérationnel" if tout_ok else "dégradé"), (200 if tout_ok else 503)
 
 
 @app.get("/")
 def index():
-    return ("<h1>SaaSWatch</h1><p>Environnement opérationnel. "
-            "Voir <a href='/status'>/status</a>.</p>")
+    return ("<h1>SaaSWatch</h1><p>Backend opérationnel.</p>"
+            "<ul><li><a href='/status'>/status</a></li>"
+            "<li><a href='/apidocs'>Swagger : documentation et tests de l'API</a></li></ul>")
+
+
+# --------------------------------------------------------------------------
+# Erreurs renvoyées en JSON (et non en page HTML)
+# --------------------------------------------------------------------------
+@app.errorhandler(404)
+def not_found(_):
+    return jsonify(erreur=f"route introuvable : {request.path}"), 404
+
+
+@app.errorhandler(405)
+def method_not_allowed(_):
+    return jsonify(erreur=f"méthode {request.method} non autorisée sur {request.path}"), 405
+
+
+@app.errorhandler(413)
+def too_large(_):
+    return jsonify(erreur="fichier trop volumineux (20 Mo maximum)"), 413
+
+
+@app.errorhandler(ESConnectionError)
+def es_down(_):
+    return jsonify(erreur="Elasticsearch ne répond pas"), 503
+
+
+@app.errorhandler(PyMongoError)
+def mongo_down(exc):
+    return jsonify(erreur=f"erreur MongoDB : {exc.__class__.__name__}"), 503
+
+
+@app.errorhandler(RedisError)
+def redis_down(_):
+    return jsonify(erreur="Redis ne répond pas"), 503

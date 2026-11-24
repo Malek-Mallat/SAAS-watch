@@ -1,0 +1,8 @@
+timestamp,level,service,source,http_method,endpoint,status_code,response_time,user_id,tenant,feature,client_ip,sql_query,message
+2026-11-01T00:22:40.634+00:00,ERROR,database,db,,,,5.732,,traore,,,UPDATE invoices SET status = 'paid' WHERE id = ?,Requête lente (5.732s)
+2026-11-01T00:30:05.724+00:00,INFO,auth,nginx,GET,/api/token,200,0.295,u_1056,pascal,authentication,177.43.221.47,,GET /api/token 200 0.295s
+2026-11-01T00:34:50.759+00:00,INFO,search,flask,,,,,u_1334,pascal,search,,,Abonnement renouvelé
+hier,ERROR,api,nginx,GET,/api/projects,200,0.120,u_1001,hamel,projects,10.0.0.1,,GET /api/projects 200
+2026-11-02T10:00:00+00:00,FATAL,api,nginx,GET,/api/projects,200,0.120,u_1001,hamel,projects,10.0.0.1,,niveau inconnu
+2026-11-02T10:05:00+00:00,ERROR,billing,nginx,GET,/api/payments,cinq-cents,abc,u_1002,muller,billing,10.0.0.2,,codes non numeriques
+2026-11-02T10:06:00+00:00,INFO,api,nginx,GET,/api/teams,200

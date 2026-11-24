@@ -1,0 +1,51 @@
+timestamp,level,service,source,http_method,endpoint,status_code,response_time,user_id,tenant,feature,client_ip,sql_query,message
+2026-11-01T00:22:40.634+00:00,ERROR,database,db,,,,5.732,,traore,,,UPDATE invoices SET status = 'paid' WHERE id = ?,Requête lente (5.732s)
+2026-11-01T00:30:05.724+00:00,INFO,auth,nginx,GET,/api/token,200,0.295,u_1056,pascal,authentication,177.43.221.47,,GET /api/token 200 0.295s
+2026-11-01T00:34:50.759+00:00,INFO,search,flask,,,,,u_1334,pascal,search,,,Abonnement renouvelé
+2026-11-01T00:42:19.456+00:00,INFO,auth,nginx,GET,/signup,200,0.14,u_1196,pascal,authentication,126.85.113.122,,GET /signup 200 0.14s
+2026-11-01T00:59:00.228+00:00,INFO,api,nginx,POST,/api/comments,200,0.328,u_1113,perrot,projects,218.145.51.134,,POST /api/comments 200 0.328s
+2026-11-01T01:04:34.321+00:00,INFO,billing,nginx,POST,/api/subscriptions,200,0.267,u_1071,da,billing,197.44.112.55,,POST /api/subscriptions 200 0.267s
+2026-11-01T01:07:45.961+00:00,INFO,billing,nginx,GET,/api/subscriptions,200,0.062,u_1224,duhamel,billing,26.58.16.33,,GET /api/subscriptions 200 0.062s
+2026-11-01T01:16:14.535+00:00,INFO,auth,flask,,,,,u_1237,normand,authentication,,,Projet créé
+2026-11-01T01:30:09.284+00:00,INFO,api,nginx,GET,/api/teams,200,0.125,u_1255,texier,projects,101.84.191.180,,GET /api/teams 200 0.125s
+2026-11-01T01:39:36.104+00:00,INFO,api,nginx,GET,/api/comments,200,0.14,u_1145,marques,projects,19.59.103.90,,GET /api/comments 200 0.14s
+2026-11-01T02:13:00.576+00:00,INFO,api,nginx,GET,/api/projects,200,0.12,u_1274,mary,projects,149.97.39.150,,GET /api/projects 200 0.12s
+2026-11-01T02:13:53.156+00:00,INFO,billing,nginx,GET,/api/payments,200,0.24,u_1122,texier,billing,211.80.148.163,,GET /api/payments 200 0.24s
+2026-11-01T02:24:59.832+00:00,INFO,billing,nginx,GET,/api/subscriptions,200,0.132,u_1326,wagner,billing,219.12.176.228,,GET /api/subscriptions 200 0.132s
+2026-11-01T02:25:49.491+00:00,INFO,api,nginx,GET,/api/comments,204,0.289,u_1364,leroy,projects,50.12.59.255,,GET /api/comments 204 0.289s
+2026-11-01T02:50:43.958+00:00,INFO,auth,nginx,POST,/logout,204,0.372,u_1262,boyer,authentication,173.191.218.185,,POST /logout 204 0.372s
+2026-11-01T03:01:31.845+00:00,INFO,api,nginx,GET,/api/projects,200,0.176,u_1283,legrand,projects,125.192.0.0,,GET /api/projects 200 0.176s
+2026-11-01T03:07:10.293+00:00,WARNING,api,flask,,,,,u_1268,blanc,projects,,,Retry sur le service email
+2026-11-01T03:13:11.995+00:00,INFO,billing,nginx,GET,/api/payments,200,0.222,u_1293,raynaud,billing,173.192.180.105,,GET /api/payments 200 0.222s
+2026-11-01T03:15:59.435+00:00,INFO,export,nginx,GET,/api/export/pdf,200,0.152,u_1213,chartier,export,172.109.120.137,,GET /api/export/pdf 200 0.152s
+2026-11-01T03:20:23.492+00:00,INFO,auth,nginx,GET,/signup,200,0.372,u_1064,hardy,authentication,37.7.236.0,,GET /signup 200 0.372s
+2026-11-01T03:26:48.752+00:00,INFO,api,nginx,GET,/api/teams,200,0.214,u_1367,perrot,projects,144.11.77.122,,GET /api/teams 200 0.214s
+2026-11-01T03:34:36.771+00:00,INFO,api,nginx,GET,/api/tasks,201,0.128,u_1098,moreno,projects,95.48.211.166,,GET /api/tasks 201 0.128s
+2026-11-01T03:41:43.766+00:00,INFO,export,nginx,PUT,/api/export/pdf,200,0.109,u_1281,dupré,export,132.13.178.160,,PUT /api/export/pdf 200 0.109s
+2026-11-01T03:45:53.412+00:00,INFO,export,flask,,,,,u_1065,pierre,export,,,Projet créé
+2026-11-01T04:39:41.611+00:00,INFO,api,nginx,DELETE,/api/comments,201,0.094,u_1364,moreau,projects,171.65.144.43,,DELETE /api/comments 201 0.094s
+2026-11-01T04:51:23.949+00:00,INFO,api,nginx,GET,/api/projects,200,0.276,u_1168,legrand,projects,214.12.117.207,,GET /api/projects 200 0.276s
+2026-11-01T04:56:22.627+00:00,INFO,export,nginx,GET,/api/export/pdf,201,0.266,u_1319,da,export,164.174.212.204,,GET /api/export/pdf 201 0.266s
+2026-11-01T05:03:00.694+00:00,INFO,api,nginx,GET,/api/comments,200,0.126,u_1062,auger,projects,181.158.41.57,,GET /api/comments 200 0.126s
+2026-11-01T05:06:28.654+00:00,INFO,api,nginx,GET,/api/comments,200,0.142,u_1296,mary,projects,132.228.116.98,,GET /api/comments 200 0.142s
+2026-11-01T05:07:00.194+00:00,INFO,search,nginx,GET,/api/search,200,0.172,u_1023,moreau,search,139.138.247.27,,GET /api/search 200 0.172s
+2026-11-01T05:11:48.203+00:00,INFO,api,nginx,GET,/api/tasks,200,0.065,u_1289,dupré,projects,134.230.122.224,,GET /api/tasks 200 0.065s
+2026-11-01T05:15:42.768+00:00,ERROR,api,flask,,,,,u_1104,marques,projects,,,TimeoutError: database did not respond in 5s
+2026-11-01T05:19:41.942+00:00,DEBUG,search,flask,,,,,u_1060,blanc,search,,,Cache miss pour la clé 04cad30a
+2026-11-01T05:20:03.922+00:00,INFO,api,nginx,GET,/api/teams,200,0.084,u_1271,pierre,projects,204.148.169.198,,GET /api/teams 200 0.084s
+2026-11-01T05:20:35.500+00:00,INFO,api,nginx,GET,/api/teams,200,0.241,u_1167,pascal,projects,108.201.191.245,,GET /api/teams 200 0.241s
+2026-11-01T05:25:40.638+00:00,INFO,search,flask,,,,,u_1032,boyer,search,,,Utilisateur connecté
+2026-11-01T05:30:39.891+00:00,ERROR,auth,flask,,,,,u_1204,auger,authentication,,,Échec de génération de la facture
+2026-11-01T05:38:41.682+00:00,INFO,search,nginx,GET,/api/search,200,0.183,u_1192,blanc,search,223.234.122.104,,GET /api/search 200 0.183s
+2026-11-01T05:47:35.536+00:00,INFO,billing,nginx,POST,/api/payments,200,0.217,u_1026,normand,billing,175.15.4.77,,POST /api/payments 200 0.217s
+2026-11-01T05:47:56.148+00:00,INFO,auth,nginx,GET,/signup,200,0.151,u_1202,dupré,authentication,194.222.52.190,,GET /signup 200 0.151s
+2026-11-01T05:58:03.554+00:00,INFO,api,flask,,,,,u_1157,mary,projects,,,Utilisateur connecté
+2026-11-01T05:58:13.197+00:00,INFO,api,nginx,GET,/api/projects,200,0.407,u_1108,raynaud,projects,217.141.177.187,,GET /api/projects 200 0.407s
+2026-11-01T05:59:18.274+00:00,INFO,api,nginx,POST,/api/comments,200,0.085,u_1236,moreau,projects,128.145.86.105,,POST /api/comments 200 0.085s
+2026-11-01T06:00:47.782+00:00,INFO,billing,nginx,GET,/api/payments,200,0.08,u_1079,auger,billing,149.227.54.29,,GET /api/payments 200 0.08s
+2026-11-01T06:00:48.004+00:00,INFO,api,nginx,GET,/api/tasks,201,0.198,u_1038,legrand,projects,134.102.184.246,,GET /api/tasks 201 0.198s
+2026-11-01T06:03:44.840+00:00,INFO,export,nginx,GET,/api/export/pdf,200,0.154,u_1185,traore,export,202.132.185.69,,GET /api/export/pdf 200 0.154s
+2026-11-01T06:05:44.933+00:00,INFO,api,nginx,GET,/api/projects,200,0.334,u_1091,da,projects,66.217.57.224,,GET /api/projects 200 0.334s
+2026-11-01T06:08:40.074+00:00,INFO,auth,nginx,GET,/signup,204,0.043,u_1091,leroy,authentication,86.105.249.185,,GET /signup 204 0.043s
+2026-11-01T06:10:21.222+00:00,WARNING,database,db,,,,3.949,,marques,,,SELECT COUNT(*) FROM events WHERE created_at > NOW() - INTERVAL 30 DAY,Requête lente (3.949s)
+2026-11-01T06:10:28.785+00:00,INFO,auth,nginx,POST,/logout,200,0.163,u_1156,pascal,authentication,130.58.81.82,,POST /logout 200 0.163s

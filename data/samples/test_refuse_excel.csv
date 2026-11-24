@@ -1,0 +1,11 @@
+timestamp;level;service;source;http_method;endpoint;status_code;response_time;user_id;tenant;feature;client_ip;sql_query;message
+2026-11-01T00:22:40.634+00:00;ERROR;database;db;;;;5.732;;traore;;;UPDATE invoices SET status = 'paid' WHERE id = ?;Requête lente (5.732s)
+2026-11-01T00:30:05.724+00:00;INFO;auth;nginx;GET;/api/token;200;0.295;u_1056;pascal;authentication;177.43.221.47;;GET /api/token 200 0.295s
+2026-11-01T00:34:50.759+00:00;INFO;search;flask;;;;;u_1334;pascal;search;;;Abonnement renouvelé
+2026-11-01T00:42:19.456+00:00;INFO;auth;nginx;GET;/signup;200;0.14;u_1196;pascal;authentication;126.85.113.122;;GET /signup 200 0.14s
+2026-11-01T00:59:00.228+00:00;INFO;api;nginx;POST;/api/comments;200;0.328;u_1113;perrot;projects;218.145.51.134;;POST /api/comments 200 0.328s
+2026-11-01T01:04:34.321+00:00;INFO;billing;nginx;POST;/api/subscriptions;200;0.267;u_1071;da;billing;197.44.112.55;;POST /api/subscriptions 200 0.267s
+2026-11-01T01:07:45.961+00:00;INFO;billing;nginx;GET;/api/subscriptions;200;0.062;u_1224;duhamel;billing;26.58.16.33;;GET /api/subscriptions 200 0.062s
+2026-11-01T01:16:14.535+00:00;INFO;auth;flask;;;;;u_1237;normand;authentication;;;Projet créé
+2026-11-01T01:30:09.284+00:00;INFO;api;nginx;GET;/api/teams;200;0.125;u_1255;texier;projects;101.84.191.180;;GET /api/teams 200 0.125s
+2026-11-01T01:39:36.104+00:00;INFO;api;nginx;GET;/api/comments;200;0.14;u_1145;marques;projects;19.59.103.90;;GET /api/comments 200 0.14s

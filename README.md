@@ -66,6 +66,41 @@ curl "http://localhost:9200/_cat/indices/logs-saas-*?v"
 curl "http://localhost:9200/logs-saas-*/_count"
 ```
 
+## API REST (Sprint 3)
+
+Documentation et tests interactifs : **http://localhost:8000/apidocs** (Swagger).
+
+1. `POST /api/v1/auth/login` avec `admin` / `admin123` (compte créé au premier démarrage, voir `.env`)
+2. copier le `token`, cliquer sur **Authorize** et saisir `Bearer <token>`
+
+| Méthode | Route | Rôle | Description |
+|---|---|---|---|
+| POST | `/api/v1/auth/login` | public | Connexion, renvoie un jeton JWT (8 h) |
+| GET | `/api/v1/auth/me` | connecté | Utilisateur courant |
+| POST / GET | `/api/v1/users` | admin | Créer / lister les utilisateurs |
+| POST | `/api/v1/uploads` | admin, analyste | Importer un fichier CSV/JSON (validé ligne par ligne) |
+| GET | `/api/v1/uploads[/<id>]` | admin, analyste | Fichiers importés et statut d'indexation |
+| DELETE | `/api/v1/uploads/<id>` | admin | Supprimer un fichier et ses logs |
+| GET | `/api/v1/logs` | admin, analyste | Recherche : `q`, `level`, `service`, `endpoint`, `tenant`, `source`, `user_id`, `status_min/max`, `min_response_time`, `date_from/to`, pagination |
+| GET | `/api/v1/logs/<id>` | admin, analyste | Détail d'un log |
+| GET | `/api/v1/stats` | admin, analyste | Statistiques (cache Redis 60 s) |
+| GET / DELETE | `/api/v1/search-history` | admin, analyste | Historique des recherches (MongoDB) |
+| GET / POST / DELETE | `/api/v1/alerts` | lecture : tous, écriture : admin | Règles d'alerte (MongoDB) |
+
+Rôle de chaque base :
+
+| Base | Données |
+|---|---|
+| Elasticsearch | les logs (recherche, agrégations) |
+| MongoDB | `users`, `uploads` (métadonnées des fichiers), `search_history`, `alert_rules` |
+| Redis | cache des statistiques |
+
+### Tests Postman
+
+Importer `docs/postman/SaaSWatch.postman_collection.json` dans Postman, choisir le fichier
+`data/samples/test_upload.csv` dans la requête « Importer un CSV », puis lancer la collection
+avec le **Collection Runner** (27 requêtes, tests automatiques).
+
 ## Arrêt
 
 ```bash
@@ -82,9 +117,9 @@ saaswatch/
 ├── .env.example
 ├── elasticsearch/      index template + script d'initialisation
 ├── logstash/           configuration et pipelines CSV / JSON
-├── webapp/             application Flask
+├── webapp/             backend Flask (API REST /api/v1 + Swagger)
 ├── generator/          générateur de logs (Faker)
 ├── data/uploads/       fichiers à ingérer
 ├── data/samples/       fichiers d'exemple
-└── docs/               dossier d'analyse et de conception
+└── docs/               dossier d'analyse et de conception, collection Postman
 ```
