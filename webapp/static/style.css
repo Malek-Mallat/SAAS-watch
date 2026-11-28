@@ -1,0 +1,27 @@
+:root { --sw-bg: #f4f6f9; }
+body { background: var(--sw-bg); }
+.navbar-brand { font-weight: 700; letter-spacing: .3px; }
+.kpi .card-body { padding: 1rem 1.25rem; }
+.kpi .kpi-label { font-size: .8rem; text-transform: uppercase; color: #6c757d; letter-spacing: .4px; }
+.kpi .kpi-value { font-size: 1.8rem; font-weight: 700; line-height: 1.2; }
+.kpi .kpi-icon { font-size: 1.8rem; opacity: .35; }
+.card { border: 0; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.card-header { background: #fff; font-weight: 600; }
+.chart-box { position: relative; height: 280px; }
+.dropzone {
+  border: 2px dashed #adb5bd; border-radius: .75rem; background: #fff;
+  padding: 2.5rem 1rem; text-align: center; cursor: pointer; transition: .15s;
+}
+.dropzone.over { border-color: #0d6efd; background: #e7f1ff; }
+.dropzone i { font-size: 2.5rem; color: #0d6efd; }
+table.dataTable td { vertical-align: middle; }
+td.msg { max-width: 360px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#logs-table tbody tr { cursor: pointer; }
+.kibana-frame { width: 100%; height: calc(100vh - 170px); border: 0; border-radius: .5rem; background: #fff; }
+.login-wrap { min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+pre.json { background: #f8f9fa; padding: 1rem; border-radius: .5rem; font-size: .85rem; }
+@media (max-width: 576px) {
+  .kpi .kpi-value { font-size: 1.35rem; }
+  .kpi .kpi-label { font-size: .7rem; }
+  .kpi .kpi-icon { display: none; }
+}

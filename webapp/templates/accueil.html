@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Accueil{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <div>
+    <h1 class="h4 mb-0">Vue d'ensemble</h1>
+    <small class="text-muted" id="periode">Chargement…</small>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <span class="badge text-bg-light border" id="source-badge"></span>
+    <button class="btn btn-outline-secondary btn-sm" onclick="charger()"><i class="bi bi-arrow-clockwise"></i> Actualiser</button>
+  </div>
+</div>
+
+<div class="row g-3 mb-3 kpi">
+  <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body d-flex justify-content-between">
+    <div><div class="kpi-label">Logs indexés</div><div class="kpi-value" id="k-total">–</div></div>
+    <i class="bi bi-database kpi-icon"></i></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body d-flex justify-content-between">
+    <div><div class="kpi-label">Erreurs 5xx</div><div class="kpi-value text-danger" id="k-5xx">–</div></div>
+    <i class="bi bi-exclamation-octagon kpi-icon text-danger"></i></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body d-flex justify-content-between">
+    <div><div class="kpi-label">Taux d'erreur 5xx</div><div class="kpi-value" id="k-taux">–</div></div>
+    <i class="bi bi-percent kpi-icon"></i></div></div></div>
+  <div class="col-6 col-lg-3"><div class="card h-100"><div class="card-body d-flex justify-content-between">
+    <div><div class="kpi-label">Temps de réponse moyen</div><div class="kpi-value" id="k-temps">–</div></div>
+    <i class="bi bi-stopwatch kpi-icon"></i></div></div></div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span>Activité et erreurs 5xx dans le temps</span>
+    <select class="form-select form-select-sm w-auto" id="interval" onchange="chargerTimeline()">
+      <option value="hour">Par heure</option>
+      <option value="day">Par jour</option>
+    </select>
+  </div>
+  <div class="card-body"><div class="chart-box"><canvas id="c-timeline"></canvas></div></div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-5"><div class="card h-100">
+    <div class="card-header">Logs par service</div>
+    <div class="card-body"><div class="chart-box"><canvas id="c-service"></canvas></div></div>
+  </div></div>
+  <div class="col-lg-3"><div class="card h-100">
+    <div class="card-header">Répartition par niveau</div>
+    <div class="card-body"><div class="chart-box"><canvas id="c-niveau"></canvas></div></div>
+  </div></div>
+  <div class="col-lg-4"><div class="card h-100">
+    <div class="card-header">Endpoints les plus lents</div>
+    <div class="card-body p-0">
+      <table class="table table-sm mb-0">
+        <thead><tr><th>Endpoint</th><th class="text-end">Moyenne</th><th class="text-end">Requêtes</th></tr></thead>
+        <tbody id="t-lents"></tbody>
+      </table>
+    </div>
+  </div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+<script>
+const graphiques = {};
+const COULEURS_NIVEAU = { DEBUG: "#6c757d", INFO: "#0dcaf0", WARNING: "#ffc107", ERROR: "#dc3545", CRITICAL: "#212529" };
+
+function dessiner(id, config) {
+  if (graphiques[id]) graphiques[id].destroy();
+  graphiques[id] = new Chart(document.getElementById(id), config);
+}
+
+async function chargerStats() {
+  const s = await SW.api("/api/v1/stats");
+  document.getElementById("k-total").textContent = SW.fmt(s.total_logs);
+  document.getElementById("k-5xx").textContent = SW.fmt(s.erreurs_5xx);
+  document.getElementById("k-taux").textContent = s.taux_erreur_5xx_pct.toLocaleString("fr-FR") + " %";
+  document.getElementById("k-temps").textContent = s.temps_reponse_moyen_s.toLocaleString("fr-FR") + " s";
+  document.getElementById("periode").textContent =
+    "Données du " + SW.date(s.periode.debut) + " au " + SW.date(s.periode.fin);
+  document.getElementById("source-badge").textContent =
+    s.source === "cache_redis" ? "Servi par le cache Redis" : "Calculé par Elasticsearch";
+
+  dessiner("c-service", {
+    type: "bar",
+    data: { labels: Object.keys(s.par_service),
+            datasets: [{ label: "Logs", data: Object.values(s.par_service), backgroundColor: "#0d6efd" }] },
+    options: { maintainAspectRatio: false, indexAxis: "y", plugins: { legend: { display: false } } },
+  });
+  const niveaux = Object.keys(s.par_niveau);
+  dessiner("c-niveau", {
+    type: "doughnut",
+    data: { labels: niveaux,
+            datasets: [{ data: Object.values(s.par_niveau), backgroundColor: niveaux.map(n => COULEURS_NIVEAU[n]) }] },
+    options: { maintainAspectRatio: false, plugins: { legend: { position: "bottom" } } },
+  });
+  document.getElementById("t-lents").innerHTML = s.endpoints_les_plus_lents.map(e =>
+    `<tr><td><a href="/recherche?endpoint=${encodeURIComponent(e.endpoint)}">${SW.esc(e.endpoint)}</a></td>
+     <td class="text-end">${e.temps_moyen_s.toLocaleString("fr-FR")} s</td>
+     <td class="text-end">${SW.fmt(e.requetes)}</td></tr>`).join("");
+}
+
+async function chargerTimeline() {
+  const interval = document.getElementById("interval").value;
+  const t = await SW.api("/api/v1/stats/timeline?interval=" + interval);
+  const labels = t.points.map(p => {
+    const d = new Date(p.date);
+    return interval === "day"
+      ? d.toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "2-digit" })
+      : d.toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit" }) + "h";
+  });
+  dessiner("c-timeline", {
+    type: "line",
+    data: { labels, datasets: [
+      { label: "Logs", data: t.points.map(p => p.total), borderColor: "#0d6efd",
+        backgroundColor: "rgba(13,110,253,.08)", fill: true, tension: .25, pointRadius: 0, yAxisID: "y" },
+      { label: "Erreurs 5xx", data: t.points.map(p => p.erreurs_5xx), borderColor: "#dc3545",
+        tension: .25, pointRadius: 0, yAxisID: "y1" },
+    ] },
+    options: { maintainAspectRatio: false, interaction: { mode: "index", intersect: false },
+      scales: { y: { title: { display: true, text: "Logs" } },
+                y1: { position: "right", grid: { drawOnChartArea: false }, title: { display: true, text: "Erreurs 5xx" } },
+                x: { ticks: { maxTicksLimit: 14 } } } },
+  });
+}
+
+async function charger() {
+  try { await Promise.all([chargerStats(), chargerTimeline()]); }
+  catch (e) { SW.alert("zone-alerte", "danger", "Impossible de charger les données : " + SW.esc(e.message)); }
+}
+charger();
+</script>
+{% endblock %}

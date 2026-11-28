@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}Historique{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+  <h1 class="h4 mb-0">Historique des recherches</h1>
+  <div class="d-flex gap-2 align-items-center">
+    <div class="form-check form-switch mb-0" data-admin-only>
+      <input class="form-check-input" type="checkbox" id="tous" onchange="charger()">
+      <label class="form-check-label small" for="tous">Tous les utilisateurs</label>
+    </div>
+    <button class="btn btn-outline-danger btn-sm" onclick="effacer()"><i class="bi bi-trash"></i> Effacer mon historique</button>
+  </div>
+</div>
+
+<div class="card"><div class="card-body p-0 table-responsive">
+  <table class="table table-hover mb-0 align-middle">
+    <thead><tr><th>Date</th><th>Utilisateur</th><th>Filtres</th><th class="text-end">Résultats</th>
+      <th class="text-end">Durée</th><th></th></tr></thead>
+    <tbody id="liste"><tr><td colspan="6" class="text-center text-muted py-4">Chargement…</td></tr></tbody>
+  </table>
+</div></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function charger() {
+  const tous = document.getElementById("tous").checked;
+  try {
+    const r = await SW.api("/api/v1/search-history?limit=100" + (tous ? "&all=true" : ""));
+    const corps = document.getElementById("liste");
+    if (!r.recherches.length) {
+      corps.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-4">Aucune recherche enregistrée.</td></tr>`;
+      return;
+    }
+    corps.innerHTML = r.recherches.map(h => {
+      const p = new URLSearchParams(h.filtres).toString();
+      const chips = Object.entries(h.filtres).map(([k, v]) =>
+        `<span class="badge text-bg-light border me-1">${SW.esc(k)} = ${SW.esc(v)}</span>`).join("") ||
+        `<span class="text-muted small">aucun filtre</span>`;
+      return `<tr>
+        <td class="small text-nowrap">${SW.date(h.date)}</td>
+        <td>${SW.esc(h.utilisateur)}</td>
+        <td>${chips}</td>
+        <td class="text-end">${SW.fmt(h.total)}</td>
+        <td class="text-end small">${h.duree_ms} ms</td>
+        <td class="text-end"><a class="btn btn-outline-primary btn-sm" href="/recherche?${p}"><i class="bi bi-arrow-repeat"></i> Relancer</a></td>
+      </tr>`;
+    }).join("");
+  } catch (e) {
+    SW.alert("zone-alerte", "danger", SW.esc(e.message));
+  }
+}
+
+async function effacer() {
+  if (!confirm("Effacer votre historique de recherches ?")) return;
+  const r = await SW.api("/api/v1/search-history", { method: "DELETE" });
+  SW.alert("zone-alerte", "success", `${SW.fmt(r.supprimees)} recherches effacées.`);
+  charger();
+}
+
+charger();
+</script>
+{% endblock %}

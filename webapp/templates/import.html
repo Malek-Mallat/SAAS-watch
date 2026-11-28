@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Import{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">Importer des fichiers de logs</h1>
+
+<div class="row g-3">
+  <div class="col-lg-4">
+    <label class="dropzone d-block" id="dropzone" for="fichier">
+      <i class="bi bi-cloud-arrow-up"></i>
+      <p class="mt-2 mb-1 fw-semibold">Glissez un fichier ici</p>
+      <p class="text-muted small mb-0">ou cliquez pour choisir — .csv ou .json, 20 Mo max.</p>
+      <input type="file" id="fichier" accept=".csv,.json" class="d-none" multiple>
+    </label>
+    <div id="resultats" class="mt-3"></div>
+    <div class="card mt-3"><div class="card-body small text-muted">
+      <strong>Format attendu.</strong> CSV : 14 colonnes séparées par des virgules
+      (timestamp, level, service, source, http_method, endpoint, status_code, response_time,
+      user_id, tenant, feature, client_ip, sql_query, message). JSON : un objet par ligne.
+      Un fichier contenant une seule ligne invalide est refusé en entier.
+    </div></div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Fichiers importés</span>
+        <button class="btn btn-outline-secondary btn-sm" onclick="chargerListe()"><i class="bi bi-arrow-clockwise"></i></button>
+      </div>
+      <div class="card-body p-0 table-responsive">
+        <table class="table table-hover mb-0 align-middle">
+          <thead><tr><th>Fichier</th><th>Format</th><th class="text-end">Lignes</th><th class="text-end">Indexés</th>
+            <th>Statut</th><th>Importé par</th><th>Date</th><th></th></tr></thead>
+          <tbody id="liste"><tr><td colspan="8" class="text-center text-muted py-4">Chargement…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const zone = document.getElementById("dropzone");
+const input = document.getElementById("fichier");
+let minuterie = null;
+
+["dragenter", "dragover"].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => zone.addEventListener(ev, e => { e.preventDefault(); zone.classList.remove("over"); }));
+zone.addEventListener("drop", e => envoyer(e.dataTransfer.files));
+input.addEventListener("change", () => { envoyer(input.files); input.value = ""; });
+
+async function envoyer(fichiers) {
+  for (const f of fichiers) {
+    const id = "r" + Math.random().toString(36).slice(2);
+    document.getElementById("resultats").insertAdjacentHTML("afterbegin",
+      `<div id="${id}" class="alert alert-secondary py-2 small"><span class="spinner-border spinner-border-sm"></span> Envoi de ${SW.esc(f.name)}…</div>`);
+    const form = new FormData();
+    form.append("file", f);
+    const bloc = document.getElementById(id);
+    try {
+      const r = await SW.api("/api/v1/uploads", { method: "POST", body: form });
+      bloc.className = "alert alert-success py-2 small";
+      bloc.innerHTML = `<i class="bi bi-check-circle"></i> <strong>${SW.esc(f.name)}</strong> accepté : ${SW.fmt(r.lignes)} lignes. Indexation en cours…`;
+      chargerListe();
+    } catch (e) {
+      const erreurs = (e.data && e.data.erreurs) || [];
+      bloc.className = "alert alert-danger py-2 small";
+      bloc.innerHTML = `<i class="bi bi-x-circle"></i> <strong>${SW.esc(f.name)}</strong> refusé : ${SW.esc(e.message)}` +
+        (erreurs.length ? "<ul class='mb-0 mt-1'>" + erreurs.map(x => `<li>${SW.esc(x)}</li>`).join("") + "</ul>" : "");
+    }
+  }
+}
+
+const BADGES = { "indexé": "success", "en_cours": "primary", "en_attente": "warning" };
+
+async function chargerListe() {
+  try {
+    const r = await SW.api("/api/v1/uploads");
+    const corps = document.getElementById("liste");
+    if (!r.fichiers.length) {
+      corps.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-4">Aucun fichier importé pour l'instant.</td></tr>`;
+    } else {
+      corps.innerHTML = r.fichiers.map(f => `
+        <tr>
+          <td title="${SW.esc(f.fichier_stocke)}">${SW.esc(f.nom_original)}</td>
+          <td><span class="badge text-bg-light border">${f.format.toUpperCase()}</span></td>
+          <td class="text-end">${SW.fmt(f.lignes)}</td>
+          <td class="text-end">${SW.fmt(f.documents_indexes)}</td>
+          <td><span class="badge text-bg-${BADGES[f.statut] || "secondary"}">${SW.esc(f.statut)}</span></td>
+          <td>${SW.esc(f.importe_par)}</td>
+          <td class="small">${SW.date(f.importe_le)}</td>
+          <td class="text-end">${SW.isAdmin()
+            ? `<button class="btn btn-outline-danger btn-sm" title="Supprimer le fichier et ses logs" onclick="supprimer('${f.id}')"><i class="bi bi-trash"></i></button>` : ""}</td>
+        </tr>`).join("");
+    }
+    // Rafraîchit tant qu'un fichier n'est pas complètement indexé
+    clearTimeout(minuterie);
+    if (r.fichiers.some(f => f.statut === "en_attente" || f.statut === "en_cours")) {
+      minuterie = setTimeout(chargerListe, 5000);
+    }
+  } catch (e) {
+    SW.alert("zone-alerte", "danger", SW.esc(e.message));
+  }
+}
+
+async function supprimer(id) {
+  if (!confirm("Supprimer ce fichier et tous ses logs indexés ?")) return;
+  try {
+    const r = await SW.api("/api/v1/uploads/" + id, { method: "DELETE" });
+    SW.alert("zone-alerte", "success", `Fichier supprimé : ${SW.fmt(r.logs_supprimes)} logs retirés d'Elasticsearch.`);
+    chargerListe();
+  } catch (e) {
+    SW.alert("zone-alerte", "danger", SW.esc(e.message));
+  }
+}
+
+chargerListe();
+</script>
+{% endblock %}

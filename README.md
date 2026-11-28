@@ -101,6 +101,20 @@ Importer `docs/postman/SaaSWatch.postman_collection.json` dans Postman, choisir 
 `data/samples/test_upload.csv` dans la requête « Importer un CSV », puis lancer la collection
 avec le **Collection Runner** (27 requêtes, tests automatiques).
 
+## Interface web (Sprint 4)
+
+Ouvrir **http://localhost:8000** et se connecter (admin / admin123 par défaut).
+
+| Page | Contenu |
+|---|---|
+| Accueil `/` | Indicateurs (logs, erreurs 5xx, taux d'erreur, temps moyen), activité dans le temps, logs par service et par niveau, endpoints les plus lents (Chart.js) |
+| Import `/import` | Glisser-déposer de fichiers CSV/JSON, erreurs de validation, statut d'indexation en direct |
+| Recherche `/recherche` | Filtres combinables, tableau paginé (DataTables), détail d'un log, export CSV |
+| Historique `/historique` | Recherches passées, bouton « Relancer » |
+| Dashboard `/dashboard` | Dashboard Kibana intégré (variable `KIBANA_DASHBOARD_URL` du `.env`) |
+
+L'interface n'accède jamais directement aux bases : chaque page appelle l'API `/api/v1` en JavaScript avec le jeton JWT de l'utilisateur.
+
 ## Arrêt
 
 ```bash
@@ -117,7 +131,7 @@ saaswatch/
 ├── .env.example
 ├── elasticsearch/      index template + script d'initialisation
 ├── logstash/           configuration et pipelines CSV / JSON
-├── webapp/             backend Flask (API REST /api/v1 + Swagger)
+├── webapp/             application Flask : API REST /api/v1 + Swagger, interface web (templates/, static/)
 ├── generator/          générateur de logs (Faker)
 ├── data/uploads/       fichiers à ingérer
 ├── data/samples/       fichiers d'exemple

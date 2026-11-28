@@ -1,12 +1,14 @@
 """Recherche dans les logs (Query DSL), statistiques (cache Redis)
 et historique des recherches (MongoDB).
 """
+import csv
+import io
 import json
 import math
 import os
 from datetime import datetime, timezone
 
-from flask import Blueprint, g, jsonify, request
+from flask import Blueprint, Response, g, jsonify, request
 
 from auth import login_required
 from extensions import ES_INDEX, cache, db, es
@@ -16,6 +18,9 @@ bp = Blueprint("logs", __name__, url_prefix="/api/v1")
 FILTRES_EXACTS = ["level", "service", "endpoint", "tenant", "source", "user_id"]
 FUSEAU = os.getenv("TZ_OFFSET", "+01:00")       # heure de Tunisie pour les dates saisies
 STATS_TTL = 60                                   # durée du cache Redis (secondes)
+COLONNES_EXPORT = ["@timestamp", "level", "service", "source", "http_method", "endpoint",
+                   "status_code", "response_time", "user_id", "tenant", "feature",
+                   "client_ip", "sql_query", "message"]
 
 
 class ParametreInvalide(ValueError):
@@ -199,6 +204,86 @@ def stats():
     }
     cache.setex("stats", STATS_TTL, json.dumps(data))
     return jsonify(source="elasticsearch", **data)
+
+
+@bp.get("/stats/timeline")
+@login_required("admin", "analyste")
+def timeline():
+    """Évolution des logs dans le temps : total et erreurs 5xx par période (graphique de l'accueil).
+    ---
+    tags: [Logs]
+    security: [{Bearer: []}]
+    parameters:
+      - {name: interval, in: query, type: string, enum: [hour, day], default: hour,
+         description: "Taille des périodes"}
+      - {name: service, in: query, type: string, description: "Limiter à un service (facultatif)"}
+    responses:
+      200: {description: "Liste de points : date, total, erreurs_5xx, temps_moyen_s"}
+    """
+    interval = "day" if request.args.get("interval") == "day" else "hour"
+    filtres = [{"term": {"service": request.args["service"]}}] if request.args.get("service") else []
+    res = es.search(index=ES_INDEX, size=0, query={"bool": {"filter": filtres}}, aggs={
+        "temps": {
+            "date_histogram": {"field": "@timestamp", "calendar_interval": interval,
+                               "time_zone": FUSEAU, "min_doc_count": 0},
+            "aggs": {
+                "erreurs": {"filter": {"range": {"status_code": {"gte": 500}}}},
+                "moyenne": {"avg": {"field": "response_time"}},
+            },
+        },
+    })
+    points = [{
+        "date": b["key_as_string"],
+        "total": b["doc_count"],
+        "erreurs_5xx": b["erreurs"]["doc_count"],
+        "temps_moyen_s": round(b["moyenne"]["value"] or 0, 3),
+    } for b in res["aggregations"]["temps"]["buckets"]]
+    return jsonify(interval=interval, points=points)
+
+
+@bp.get("/logs/export")
+@login_required("admin", "analyste")
+def export_logs():
+    """Exporter en CSV les logs d'une recherche (mêmes filtres que /logs, 10 000 lignes max.).
+    ---
+    tags: [Logs]
+    security: [{Bearer: []}]
+    produces: [text/csv]
+    parameters:
+      - {name: q, in: query, type: string}
+      - {name: level, in: query, type: string}
+      - {name: service, in: query, type: string}
+      - {name: endpoint, in: query, type: string}
+      - {name: tenant, in: query, type: string}
+      - {name: source, in: query, type: string}
+      - {name: status_min, in: query, type: integer}
+      - {name: date_from, in: query, type: string}
+      - {name: date_to, in: query, type: string}
+      - {name: format, in: query, type: string, enum: [excel, standard], default: excel,
+         description: "excel : séparateur ; et virgule décimale (Excel en français) ; standard : séparateur ,"}
+    responses:
+      200: {description: Fichier CSV}
+    """
+    # Format « excel » (par défaut) : séparateur ; et virgule décimale, comme l'attend
+    # Excel en français. Format « standard » : séparateur , et point décimal.
+    excel = request.args.get("format", "excel") != "standard"
+    res = es.search(index=ES_INDEX, query=construire_requete(request.args),
+                    sort=[{"@timestamp": "desc"}], size=10000)
+    sortie = io.StringIO()
+    ecrivain = csv.writer(sortie, delimiter=";" if excel else ",", lineterminator="\n")
+    ecrivain.writerow(COLONNES_EXPORT)
+    for h in res["hits"]["hits"]:
+        s = h["_source"]
+        ligne = []
+        for c in COLONNES_EXPORT:
+            v = s.get(c, "")
+            if excel and isinstance(v, float):
+                v = str(v).replace(".", ",")
+            ligne.append(v)
+        ecrivain.writerow(ligne)
+    nom = f"logs_saaswatch_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.csv"
+    return Response("﻿" + sortie.getvalue(), mimetype="text/csv",       # ﻿ : accents lisibles dans Excel
+                    headers={"Content-Disposition": f"attachment; filename={nom}"})
 
 
 @bp.get("/search-history")

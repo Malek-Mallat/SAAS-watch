@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block title %}Recherche{% endblock %}
+{% block head %}
+<link href="https://cdn.datatables.net/2.0.8/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">Rechercher dans les logs</h1>
+
+<div class="card mb-3"><div class="card-body">
+  <form id="filtres" class="row g-2 align-items-end">
+    <div class="col-md-4 col-lg-3">
+      <label class="form-label small mb-1">Mots dans le message</label>
+      <input class="form-control form-control-sm" name="q" placeholder="ex. timeout">
+    </div>
+    <div class="col-6 col-md-2 col-lg-1">
+      <label class="form-label small mb-1">Niveau</label>
+      <select class="form-select form-select-sm" name="level">
+        <option value="">Tous</option><option>DEBUG</option><option>INFO</option>
+        <option>WARNING</option><option>ERROR</option><option>CRITICAL</option>
+      </select>
+    </div>
+    <div class="col-6 col-md-2 col-lg-1">
+      <label class="form-label small mb-1">Service</label>
+      <select class="form-select form-select-sm" name="service">
+        <option value="">Tous</option><option>api</option><option>auth</option><option>billing</option>
+        <option>search</option><option>export</option><option>database</option>
+      </select>
+    </div>
+    <div class="col-6 col-md-2 col-lg-1">
+      <label class="form-label small mb-1">Source</label>
+      <select class="form-select form-select-sm" name="source">
+        <option value="">Toutes</option><option>nginx</option><option>flask</option><option>db</option>
+      </select>
+    </div>
+    <div class="col-6 col-md-2 col-lg-2">
+      <label class="form-label small mb-1">Endpoint</label>
+      <input class="form-control form-control-sm" name="endpoint" placeholder="/api/payments">
+    </div>
+    <div class="col-6 col-md-2 col-lg-1">
+      <label class="form-label small mb-1">Client</label>
+      <input class="form-control form-control-sm" name="tenant" placeholder="hamel">
+    </div>
+    <div class="col-6 col-md-2 col-lg-1">
+      <label class="form-label small mb-1">Code ≥</label>
+      <input class="form-control form-control-sm" name="status_min" type="number" placeholder="500">
+    </div>
+    <div class="col-6 col-md-2 col-lg-1">
+      <label class="form-label small mb-1">Lent (s) ≥</label>
+      <input class="form-control form-control-sm" name="min_response_time" type="number" step="0.1" placeholder="2">
+    </div>
+    <div class="col-6 col-md-3 col-lg-2">
+      <label class="form-label small mb-1">Du</label>
+      <input class="form-control form-control-sm" name="date_from" type="date">
+    </div>
+    <div class="col-6 col-md-3 col-lg-2">
+      <label class="form-label small mb-1">Au</label>
+      <input class="form-control form-control-sm" name="date_to" type="date">
+    </div>
+    <div class="col-12 col-lg-auto d-flex gap-2">
+      <button class="btn btn-primary btn-sm" type="submit"><i class="bi bi-search"></i> Rechercher</button>
+      <button class="btn btn-outline-secondary btn-sm" type="button" onclick="reinitialiser()">Effacer</button>
+      <button class="btn btn-outline-success btn-sm" type="button" onclick="exporter()" id="btn-export"><i class="bi bi-filetype-csv"></i> Export CSV</button>
+    </div>
+  </form>
+</div></div>
+
+<div class="card"><div class="card-body">
+  <p class="small text-muted mb-2" id="resume"></p>
+  <div class="table-responsive">
+    <table id="logs-table" class="table table-sm table-hover w-100">
+      <thead><tr><th>Date</th><th>Niveau</th><th>Service</th><th>Source</th><th>Endpoint</th>
+        <th>Code</th><th>Temps (s)</th><th>Client</th><th>Message</th></tr></thead>
+    </table>
+  </div>
+</div></div>
+
+<div class="modal fade" id="detail" tabindex="-1"><div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title">Détail du log</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body"><pre class="json mb-0" id="detail-json"></pre></div>
+</div></div></div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/2.0.8/js/dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/2.0.8/js/dataTables.bootstrap5.min.js"></script>
+<script>
+const form = document.getElementById("filtres");
+
+function filtres() {
+  const p = new URLSearchParams();
+  new FormData(form).forEach((v, k) => { if (String(v).trim()) p.set(k, String(v).trim()); });
+  return p;
+}
+
+// Préremplit le formulaire depuis l'URL (liens de l'accueil et de l'historique)
+new URLSearchParams(window.location.search).forEach((v, k) => { if (form.elements[k]) form.elements[k].value = v; });
+
+const table = new DataTable("#logs-table", {
+  serverSide: true, searching: false, ordering: false, pageLength: 25,
+  lengthMenu: [10, 25, 50, 100],
+  language: { url: "https://cdn.datatables.net/plug-ins/2.0.8/i18n/fr-FR.json" },
+  ajax: async (data, callback) => {
+    const p = filtres();
+    p.set("page", Math.floor(data.start / data.length) + 1);
+    p.set("size", data.length);
+    try {
+      const r = await SW.api("/api/v1/logs?" + p.toString());
+      document.getElementById("resume").textContent =
+        `${SW.fmt(r.total)} logs trouvés en ${r.duree_ms} ms — recherche enregistrée dans l'historique.`;
+      callback({ draw: data.draw, recordsTotal: r.total, recordsFiltered: r.total, data: r.logs });
+    } catch (e) {
+      SW.alert("zone-alerte", "danger", SW.esc(e.message));
+      callback({ draw: data.draw, recordsTotal: 0, recordsFiltered: 0, data: [] });
+    }
+  },
+  columns: [
+    { data: "@timestamp", render: d => `<span class="small text-nowrap">${SW.date(d)}</span>` },
+    { data: "level", render: d => SW.levelBadge(d) },
+    { data: "service", render: d => SW.esc(d) },
+    { data: "source", render: d => SW.esc(d) },
+    { data: "endpoint", defaultContent: "–", render: d => d ? `<code>${SW.esc(d)}</code>` : "–" },
+    { data: "status_code", defaultContent: "–", render: d => SW.statusBadge(d) },
+    { data: "response_time", defaultContent: "–", className: "text-end",
+      render: d => (d === undefined || d === null) ? "–"
+        : `<span class="${d >= 2 ? "text-danger fw-semibold" : ""}">${d}</span>` },
+    { data: "tenant", defaultContent: "–", render: d => SW.esc(d) },
+    { data: "message", className: "msg", render: (d, t, row) => SW.esc(row.sql_query || d) },
+  ],
+});
+
+$("#logs-table tbody").on("click", "tr", function () {
+  const row = table.row(this).data();
+  if (!row) return;
+  document.getElementById("detail-json").textContent = JSON.stringify(row, null, 2);
+  bootstrap.Modal.getOrCreateInstance(document.getElementById("detail")).show();
+});
+
+form.addEventListener("submit", e => {
+  e.preventDefault();
+  history.replaceState(null, "", "/recherche?" + filtres().toString());
+  table.ajax.reload();
+});
+
+function reinitialiser() {
+  form.reset();
+  history.replaceState(null, "", "/recherche");
+  table.ajax.reload();
+}
+
+async function exporter() {
+  const btn = document.getElementById("btn-export");
+  btn.disabled = true;
+  try {
+    const blob = await SW.api("/api/v1/logs/export?" + filtres().toString());
+    SW.download(blob, "logs_saaswatch.csv");
+  } catch (e) {
+    SW.alert("zone-alerte", "danger", "Export impossible : " + SW.esc(e.message));
+  } finally {
+    btn.disabled = false;
+  }
+}
+</script>
+{% endblock %}

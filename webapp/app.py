@@ -1,4 +1,4 @@
-"""SaaSWatch — backend Flask (Sprint 3).
+"""SaaSWatch — application Flask : API REST (Sprint 3) + interface web (Sprint 4).
 
 API REST versionnée /api/v1, documentée avec Swagger : http://localhost:8000/apidocs
 
@@ -9,13 +9,14 @@ Organisation du code :
   api_uploads.py  import des fichiers + métadonnées MongoDB
   api_logs.py     recherche Query DSL, statistiques (cache Redis), historique
   api_alerts.py   règles d'alerte (MongoDB)
+  web.py          pages de l'interface web (templates/ + static/)
 """
 import logging
 import os
 
 from elasticsearch import ConnectionError as ESConnectionError
 from flasgger import Swagger
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, redirect, request, url_for
 from pymongo.errors import PyMongoError
 from redis.exceptions import RedisError
 
@@ -23,6 +24,7 @@ import api_alerts
 import api_logs
 import api_uploads
 import auth
+import web
 from extensions import ES_INDEX, cache, es, mongo
 
 app = Flask(__name__)
@@ -48,7 +50,7 @@ Swagger(app, template={
     },
 })
 
-for module in (auth, api_uploads, api_logs, api_alerts):
+for module in (auth, api_uploads, api_logs, api_alerts, web):
     app.register_blueprint(module.bp)
 
 try:
@@ -102,18 +104,13 @@ def status():
                    statut="opérationnel" if tout_ok else "dégradé"), (200 if tout_ok else 503)
 
 
-@app.get("/")
-def index():
-    return ("<h1>SaaSWatch</h1><p>Backend opérationnel.</p>"
-            "<ul><li><a href='/status'>/status</a></li>"
-            "<li><a href='/apidocs'>Swagger : documentation et tests de l'API</a></li></ul>")
-
-
 # --------------------------------------------------------------------------
 # Erreurs renvoyées en JSON (et non en page HTML)
 # --------------------------------------------------------------------------
 @app.errorhandler(404)
 def not_found(_):
+    if not request.path.startswith("/api/"):
+        return redirect(url_for("web.accueil"))
     return jsonify(erreur=f"route introuvable : {request.path}"), 404
 
 
